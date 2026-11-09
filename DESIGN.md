@@ -49,7 +49,7 @@ The brief asks where and how AI tools were used, and, given the time constraints
    - The tests run on synthetic recordings of the measured device model, not on real recordings.
    - The tests that compared the station's maths with the original DOE limits were removed with the bench data.
    - The screen was tested through its own buttons by code, not yet by a person, and the keyboard shortcuts weren't tried by hand.
-   - Linux and macOS haven't been run yet.
+   - Linux and macOS are tested and built in CI, and each built app passes a headless smoke test; their GUIs haven't been opened by a person yet.
 7. **Written material.** Claude wrote up documents from my drafts and notes, and edited some report sections in my voice. I review all of that text before it's submitted.
 
 **Mistakes that the checks caught along the way** (examples):
