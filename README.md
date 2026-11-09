@@ -83,6 +83,29 @@ python tools/build_app.py      # with the venv's Python, from the repository roo
 - **What goes in:** the `sensortest` package and its dependencies, and the config the station loads (settings, the sensor test file, the active limit set). Nothing from `tests/`, `tools/`, `benchtop_testing/` or `docs/` goes in. The packaged settings default to the Teensy fixture.
 - **The smoke test:** after building, the script runs the new app headless on synthetic recordings. It must exit cleanly and write a record (`--smoke-only` reruns just that).
 
+## Tests
+
+```bash
+python -m pytest              # 97 tests: no hardware and no bench data needed (with the venv's Python)
+python -m pytest --hardware   # also the 2 tests that run PROD and ENG on the Teensy (plug it in first)
+```
+
+CI runs the suite on Windows, Linux and macOS on every push. The GUI tests run offscreen, so no display is needed. The tests that need recorded data run on **synthetic recordings** made from the device model measured in Part 1 (`devices/replay/synthetic.py`): they give the same verdicts as the Teensy (ch1 weak, ch4 noisy, ch5 offset, ch8 wrong frequency), so the whole station is tested end to end without the device.
+
+| File | Tests | What they check |
+|---|---|---|
+| `test_methods.py` | 9 | The measurement maths (sine fit, dominant frequency, amplitude at the response frequency, stuck runs, outliers, line rate) on signals with known answers |
+| `test_devices.py` | 25 | The serial link (134 baud refused, open retries, a device that sends nothing); the Teensy drivers on an in-memory fake Teensy (every reply fault, stalls, a lost device, Abort); the device manager and fixture validation |
+| `test_engine_replay.py` | 17 | Full PROD and ENG runs give the expected verdicts and a complete CSV record. Each of 6 injected faults ends in the right error code with the actuator turned off. Also Abort, Retry once, Next, DUT serial validation, and bad input files going to Not ready |
+| `test_state_machine.py` | 7 | The state machine's transition table, e.g. every way out of Running goes through the safe state |
+| `test_gui_smoke.py` | 5 | The real window driven through its own buttons: the operator flow (FAIL banner, table cells, channel chips, terminal), ERROR with Retry once, test mode with the ENG preview, the enlarged plot, and the live-data buffer |
+| `test_live_plumbing.py` | 7 | The live samples add up exactly to the windows that were judged; commands, replies and the actuator's reply reach the screen |
+| `test_core_contracts.py`, `test_limit_sets.py` | 7, 3 | Error codes, registries, inclusive limits, the plan compiler's checks; the limit sets and the one the station runs |
+| `test_synthetic.py` | 3 | The synthetic recordings have the bench format, are reproducible, and give the Teensy's verdicts through the limit-derivation code |
+| `test_packaging.py` | 3 | Where the app finds its settings, from source and as a packaged app |
+| `test_architecture.py` | 11 | Each package imports only what the architecture allows, and Qt stays in `ui/` and `app/` |
+| `test_teensy_hardware.py` | 2 | PROD and ENG on the real Teensy (`--hardware` only) |
+
 ## Repository map
 
 ```
