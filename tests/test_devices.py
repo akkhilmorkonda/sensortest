@@ -170,14 +170,17 @@ def test_unplugged_is_e209_for_both_roles(pair, fake: FakeTeensy) -> None:
 
 
 def test_abort_interrupts_acquire_quickly(pair, fake: FakeTeensy) -> None:
-    _, sen, _ = pair
+    """Abort is seen within a poll period (0.05 s), not after the stall timeout. The stall timeout is
+    2 s here, so the bound of 0.5 s separates the two with plenty of margin for a busy CI machine."""
+    _, _, link = pair
+    sen = TeensySensor(link, {"stall_timeout_s": 2.0})
     fake.streaming = False
     cancel = threading.Event()
     threading.Timer(0.05, cancel.set).start()
     t = time.monotonic()
     with pytest.raises(Aborted):
         sen.acquire("T10", 0, 30, cancel)
-    assert time.monotonic() - t < 0.15
+    assert time.monotonic() - t < 0.5
 
 
 def test_closing_the_actuator_sends_baseline(pair, fake: FakeTeensy) -> None:
