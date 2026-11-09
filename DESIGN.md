@@ -63,5 +63,5 @@ The brief asks where and how AI tools were used, and, given the time constraints
 ## How the AI's work was checked
 
 - **On the device:** `pytest --hardware` runs the production and engineering plans on the Teensy, the 40-run gauge run checked the limits, and screenshots of the real app on the Teensy confirm the screen.
-- **Without hardware:** 94 tests, run on synthetic recordings, need no hardware and no bench data. They include the full run, every injected fault ending in the right error with the actuator turned off, and the screen driven through its own buttons. Lint is clean.
+- **Without hardware:** 97 tests, run on synthetic recordings, need no hardware and no bench data. They include the full run, every injected fault ending in the right error with the actuator turned off, and the screen driven through its own buttons. Lint is clean. CI runs them on Windows, Linux and macOS, and a separate self-test app (`sensortest-selftest`) carries the same suite so it can be run without Python.
 - **Before and after each change:** measurements on recorded data or the device, written down with the change.

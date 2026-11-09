@@ -9,6 +9,9 @@ from conftest import CONFIG
 from sensortest.app import locations
 
 
+@pytest.mark.skipif(
+    getattr(sys, "frozen", False), reason="checks running from source; this is the packaged self-test"
+)
 def test_from_source_the_repo_config_is_used(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delattr(sys, "frozen", raising=False)
     assert locations.default_settings() == CONFIG / "settings.yaml"

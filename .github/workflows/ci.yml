@@ -1,5 +1,7 @@
-# CI: lint and test on Windows, Linux and macOS, then build the app on each and smoke-test it.
-# The builds are uploaded as artifacts: sensortest-Windows (.exe), sensortest-Linux, sensortest-macOS (.app, zipped).
+# CI: lint and test on Windows, Linux and macOS, then build the apps on each and smoke-test them.
+# Uploaded as artifacts, per OS:
+#   sensortest-<OS>            the station app: Windows .exe, Linux binary, macOS .app (zipped)
+#   sensortest-selftest-<OS>   the self-test app: runs the test suite without Python
 name: CI
 
 on:
@@ -43,7 +45,7 @@ jobs:
       - name: Test (no hardware, no bench data)
         run: python -m pytest
 
-      - name: Build the app and smoke-test it
+      - name: Build the apps and smoke-test them (the self-test app runs the whole suite)
         run: python tools/build_app.py
 
       - name: Zip the macOS app bundle
@@ -54,4 +56,10 @@ jobs:
         with:
           name: sensortest-${{ runner.os }}
           path: ${{ runner.os == 'Windows' && 'dist/sensortest.exe' || runner.os == 'macOS' && 'dist/sensortest-macos.zip' || 'dist/sensortest' }}
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sensortest-selftest-${{ runner.os }}
+          path: ${{ runner.os == 'Windows' && 'dist/sensortest-selftest.exe' || 'dist/sensortest-selftest' }}
           if-no-files-found: error

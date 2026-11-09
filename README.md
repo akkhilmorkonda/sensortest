@@ -16,6 +16,8 @@ Every push lints, tests, builds and smoke-tests the app on all three operating s
 | Linux | `sensortest-Linux` → `sensortest` | `chmod +x sensortest && ./sensortest`. Qt needs `libxcb-cursor0` (on Ubuntu: `sudo apt install libxcb-cursor0`) |
 | macOS | `sensortest-macOS` → `sensortest-macos.zip` | Unzip it, then right-click `sensortest.app` → **Open** (it's unsigned). From a terminal: `sensortest.app/Contents/MacOS/sensortest` |
 
+Each run also uploads **`sensortest-selftest-<OS>`**, an app that runs the test suite without Python (see Tests).
+
 - **It starts on the Teensy.** The Teensy is found by its USB ID (`16C0:0483`) on any OS. To try the app without hardware, start it from a terminal with `--fixture synthetic`.
 - **Settings and records:** on first run the app copies its settings to `~/sensortest/config/` (Windows: `C:\Users\<you>\sensortest\config\`), where you can edit them. Every run's record goes to `~/sensortest/output/`. Set `SENSORTEST_HOME` to use another folder.
 - **Headless runs** work from the app too, for example `sensortest.exe --headless --fixture synthetic --fast --serial SN0001`.
@@ -70,18 +72,19 @@ From source, the default fixture is `synthetic`: it plays recordings generated f
 ## Build the one-file app
 
 ```bash
-python tools/build_app.py      # with the venv's Python, from the repository root
+python tools/build_app.py            # with the venv's Python, from the repository root: both apps
+python tools/build_app.py app        # only the station app (or: selftest)
 ```
 
-| OS | Result |
-|---|---|
-| Windows | `dist/sensortest.exe` (one file, about 52 MB) |
-| Linux | `dist/sensortest` (one file) |
-| macOS | `dist/sensortest.app` (an app bundle; PyInstaller builds macOS apps as a bundle) |
+| OS | Station app | Self-test app |
+|---|---|---|
+| Windows | `dist/sensortest.exe` (one file, about 52 MB) | `dist/sensortest-selftest.exe` (one file, about 57 MB) |
+| Linux | `dist/sensortest` (one file) | `dist/sensortest-selftest` (one file) |
+| macOS | `dist/sensortest.app` (an app bundle; PyInstaller builds macOS apps as a bundle) | `dist/sensortest-selftest` (one file, run from a terminal) |
 
 - **Each OS builds its own app**, because PyInstaller can't cross-compile. CI runs this same script on all three.
 - **What goes in:** the `sensortest` package and its dependencies, and the config the station loads (settings, the sensor test file, the active limit set). Nothing from `tests/`, `tools/`, `benchtop_testing/` or `docs/` goes in. The packaged settings default to the Teensy fixture.
-- **The smoke test:** after building, the script runs the new app headless on synthetic recordings. It must exit cleanly and write a record (`--smoke-only` reruns just that).
+- **The smoke tests:** after building, the script runs the new station app headless on synthetic recordings; it must exit cleanly and write a record. It runs the self-test app, which must pass the whole suite. `--smoke-only` reruns just those.
 
 ## Tests
 
@@ -89,6 +92,17 @@ python tools/build_app.py      # with the venv's Python, from the repository roo
 python -m pytest              # 97 tests: no hardware and no bench data needed (with the venv's Python)
 python -m pytest --hardware   # also the 2 tests that run PROD and ENG on the Teensy (plug it in first)
 ```
+
+**Without Python: the self-test app.** `sensortest-selftest` carries the same suite (the tests, the config and the sources they read) and runs it with pytest, so a reviewer can run the tests from one download (the `sensortest-selftest-<OS>` artifact, or build it as in Build the one-file app):
+
+```bash
+sensortest-selftest.exe              # Windows: double-click it, or run it in a terminal; it waits for Enter before closing
+./sensortest-selftest                # Linux and macOS (chmod +x it first)
+sensortest-selftest.exe --hardware   # also PROD and ENG on the Teensy
+sensortest-selftest.exe -k gui       # any pytest option works, e.g. only the GUI tests
+```
+
+It prints pytest's report and a final `ALL TESTS PASSED` or `FAILURES`, and exits with pytest's code. Without hardware it gives 96 passed and 3 skipped: the 2 Teensy tests, and one packaging test that only applies from source. With the Teensy and `--hardware`, 98 passed and 1 skipped (checked on Windows). CI builds it on all three OSes and runs it as its smoke test.
 
 CI runs the suite on Windows, Linux and macOS on every push. The GUI tests run offscreen, so no display is needed. The tests that need recorded data run on **synthetic recordings** made from the device model measured in Part 1 (`devices/replay/synthetic.py`): they give the same verdicts as the Teensy (ch1 weak, ch4 noisy, ch5 offset, ch8 wrong frequency), so the whole station is tested end to end without the device.
 
@@ -113,7 +127,7 @@ config/              what the station loads: settings.yaml, sensor_tests.yaml, T
   archive/           earlier limit sets, kept as records (the station can't load them)
 src/sensortest/      the station (one package per layer, see Architecture)
 tests/               the pytest suite, including offscreen GUI tests and an in-memory fake Teensy
-tools/               developer scripts: build the app, screenshots of the real app
+tools/               developer scripts: build the apps, the self-test launcher, screenshots of the real app
 docs/                PRD, test plan TP-001, GUI spec, device protocol; gui_screens/; archive/
 benchtop_testing/    Part 1 bench work: captures, analyses, limit derivations and their tools (evidence)
 DESIGN.md            how I used AI tools on this project (the brief's AI usage note)
@@ -149,7 +163,7 @@ Ports and adapters (`docs/software_prd.md` §6). The dependency rule is enforced
 | Add a device | A folder `devices/<name>/` with an `@actuator` and/or `@sensor` driver (and an `@link` only for a new kind of connection); one import in `app/wiring.py`; a fixture in `config/settings.yaml` naming each role's driver and link |
 | Change the limits | `benchtop_testing/tools/derive_limits.py` writes a new limit set into `config/`; point `limits:` in `config/settings.yaml` at it. Never edit a generated limit set by hand |
 | Inject a fault | Set `fault:` on a replay link in `config/settings.yaml` (`wrong_ack`, `no_reply`, `stall`, `drop_lines`, `lost`, `reject_baseline`) |
-| Build the app | `python tools/build_app.py` (see Build the one-file app) |
+| Build the apps | `python tools/build_app.py` (see Build the one-file app) |
 | Regenerate the screenshots | `python tools/capture_screens.py` (see `tools/README.md`) |
 
 ## Configuration and outputs
