@@ -257,11 +257,17 @@ def test_bad_fixture_is_e301(change, message: str) -> None:
 
 # ---------------------------------------------------------------- end to end ----
 def test_prod_run_on_the_simulated_teensy_passes(tmp_path: Path, fake: FakeTeensy) -> None:
-    """The whole engine on the Teensy pair: a clean simulated device passes PROD (~5 s)."""
+    """The whole engine on the Teensy pair: a clean simulated device passes PROD (~5 s).
+
+    The fake makes its lines on the host's clock and the link stamps them when read, so on a busy CI
+    machine (macOS runners) a delayed reader thread skews the measured line rate by a few percent
+    (147.5 Hz seen in CI). This test is about the drivers and the engine, so it allows ±5%; the
+    station keeps ±1%, and the line-rate check is tested on replay (drop_lines → E205)."""
     fake.rate = 150.0
     path = make_settings(tmp_path)
     s = yaml.safe_load(path.read_text())
     s["fixtures"]["teensy"]["links"]["usb"]["open_retry_backoff_s"] = [0.0]
+    s["fixtures"]["teensy"]["sensor"]["line_rate_tolerance"] = 0.05
     path.write_text(yaml.safe_dump(s))
     app = build(path, fixture="teensy")
     done = []
