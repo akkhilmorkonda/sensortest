@@ -1,0 +1,81 @@
+# Station settings (D-040, D-041, D-044). Relative paths resolve from this file's folder.
+schema: tp001-settings-v2
+station: BENCH-01
+data_dir: ../output                    # one CSV per run + raw CSV, in a folder per day (D-048)
+serial_pattern: "^[A-Za-z0-9_-]{1,32}$"  # DUT serial the operator enters for every run (D-047)
+sensor_tests: sensor_tests.yaml
+limits: TP-001_limits_v2.yaml           # D-056: L-v1's values without the phase steps (L-v0 and L-v1 are records in config/archive/)
+
+# The two test plans: explicit lists of step IDs from the sensor test file (D-040).
+# The operator view always runs operator_sequence; the engineering view can pick either.
+operator_sequence: PROD
+plans:
+  PROD: [2040, 2050, 6040, 6050]
+  ENG:  [2040, 2050, 2060, 2070, 3040, 3050, 6040, 6050, 4040, 4050,
+         5050, 5060, 5080, 5090]
+
+# The fixture's hardware (D-049). A link owns one connection (a serial port, or a recording);
+# the actuator and the sensor each have their own driver, attached to a link by name.
+# active_fixture picks one; `--fixture NAME` overrides it for one launch.
+active_fixture: synthetic
+fixtures:
+  synthetic:                    # the recorded Teensy on recordings made from the device model (D-060):
+    links:                      # runs anywhere, no hardware and no bench data needed
+      sim:
+        type: replay
+        synthetic: true
+        run_index: 0
+        realtime: true          # pace lines at 150 Hz like the real device
+        fault: none             # none | wrong_ack | no_reply | reject_baseline | stall | drop_lines | lost
+    actuator:
+      driver: replay
+      link: sim
+    sensor:
+      driver: replay
+      link: sim
+      fs_nom_hz: 150.0
+      line_rate_tolerance: 0.01
+  replay:                       # the real DOE-1 recordings: bench data, kept on the bench machine (not in git)
+    links:
+      doe1:
+        type: replay
+        data_dir: ../benchtop_testing/03_doe1_repeatability
+        run_index: 0            # which repeat of each frequency to replay (0-9)
+        realtime: true          # pace lines at 150 Hz like the real device
+        fault: none             # none | wrong_ack | no_reply | reject_baseline | stall | drop_lines | lost
+    actuator:
+      driver: replay
+      link: doe1
+    sensor:
+      driver: replay
+      link: doe1
+      fs_nom_hz: 150.0
+      line_rate_tolerance: 0.01
+  teensy:                       # the preflashed Teensy: both roles on its one USB serial port
+    links:
+      usb:
+        type: serial
+        usb_id: "16C0:0483"     # found by USB VID:PID; or set `port: COM4`
+        baud: 115200            # ignored by the Teensy; 134 is always refused (bootloader)
+        open_retry_backoff_s: [0.5, 1.0]
+        first_line_timeout_s: 2.0
+    actuator:
+      driver: teensy
+      link: usb
+      reply_timeout_s: 0.5      # `response:N` must be answered `N.00` within this (E203)
+      reject_window_s: 0.05     # `baseline` has no reply: accepted if no rejection in this time
+    sensor:
+      driver: teensy
+      link: usb
+      fs_nom_hz: 150.0
+      line_rate_tolerance: 0.01
+      stall_timeout_s: 0.5      # no data line for this long is E208
+
+device_poll_s: 1.0
+run_policy:
+  max_operator_retries: 1
+sinks:
+  csv:
+    write_retries_s: [0.2, 0.4, 0.8]
+ui:
+  plot_fps: 30

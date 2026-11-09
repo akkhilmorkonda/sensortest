@@ -1,0 +1,76 @@
+# TP-001 sensor test file (D-040, D-045): every capture, metric and test step, defined once.
+# Which steps a sequence runs is chosen in settings.yaml (plans: PROD / ENG).
+# A step defined on a capture that runs, but not listed in the sequence, is still measured and
+# saved as a diagnostic (D-029). Validity steps 1000/1900 are always included.
+# v2 (D-056): all channels are assumed in phase, so there is no phase step, and every step is
+# judged on its own channel's data alone: no step depends on another (no depends_on).
+# v2.1 (D-058): the actuator's tone is assumed never to jump, so there is no stimulus check (E211).
+schema: tp001-tests-v2
+plan: TP-001
+plan_version: "v2.1"
+
+# Order matters: captures run in this order (whichever ones the plan needs). D-044: these
+# timings change results, so they live here, versioned with the tests.
+captures:
+  - {id: BL,  command: baseline,      settle_lines: 30, window_lines: 300, title: Baseline}
+  - {id: T5,  command: "response:5",  tone_hz: 5,  settle_lines: 30, window_lines: 300, title: Tone 5 Hz}
+  - {id: T10, command: "response:10", tone_hz: 10, settle_lines: 30, window_lines: 300, title: Tone 10 Hz}
+  - {id: T15, command: "response:15", tone_hz: 15, settle_lines: 30, window_lines: 300, title: Tone 15 Hz}
+  - {id: REC, command: baseline,      settle_lines: 30, window_lines: 150, title: Recovery}
+
+# Metric dictionary: key -> method (TP-001 §6), unit, description.
+metrics:
+  offset:             {method: M2, unit: a.u.,    description: Mean of the window}
+  noise_std:          {method: M2, unit: a.u.,    description: Sample std (ddof 1)}
+  p2p:                {method: M2, unit: a.u.,    description: Peak-to-peak}
+  stuck_run:          {method: M7, unit: samples, description: Longest run of identical values}
+  outliers:           {method: M8, unit: count,   description: "Samples beyond 2.5 x std"}
+  tone_amplitude:     {method: M3, unit: a.u.,    description: "Sine-fit amplitude at the measured dominant frequency when a tone is present (peak >= tone-present), else at the commanded f (D-056)"}
+  dominant_frequency: {method: M4, unit: Hz,      description: "Dominant peak; NOT TESTED below the tone-present threshold (D-030)"}
+  residual_std:       {method: M3, unit: a.u.,    description: Std of the sine-fit residual (ddof 3)}
+  spur:               {method: M6, unit: a.u.,    description: "Largest residual peak, > 0.5 Hz and > 1 Hz from f"}
+  half_stability:     {method: M3, unit: "%",     description: Amplitude of 2nd half / 1st half - 1}
+  offset_shift:       {method: M3, unit: a.u.,    description: Sine-fit offset minus BL offset}
+  snr:                {method: M3, unit: dB,      description: "20 log10((A / sqrt 2) / BL noise std)"}
+  tone_absent:        {method: M3, unit: a.u.,    description: Amplitude at the last commanded tone}
+  recovery_shift:     {method: M2, unit: a.u.,    description: Mean minus BL offset}
+
+# Limit-capable steps. family = diagnostic rank for the primary failure (D-026).
+# title = the operator's name for the step on the screen (D-053); records keep `name`.
+steps:
+  - {id: 2040, name: BL_OFFSET,        capture: BL,  metric: offset,             family: offset, title: Baseline offset}
+  - {id: 2050, name: BL_NOISE_STD,     capture: BL,  metric: noise_std,          family: noise, title: Baseline noise}
+  - {id: 2060, name: BL_STUCK_RUN,     capture: BL,  metric: stuck_run,          family: stuck, title: Baseline stuck run}
+  - {id: 2070, name: BL_OUTLIERS,      capture: BL,  metric: outliers,           family: glitch, title: Baseline outliers}
+  - {id: 3040, name: T5_AMPLITUDE,     capture: T5,  metric: tone_amplitude,     family: gain, title: Response amplitude}
+  - {id: 3050, name: T5_FREQUENCY,     capture: T5,  metric: dominant_frequency, family: frequency, title: Response frequency}
+  - {id: 6040, name: T10_AMPLITUDE,    capture: T10, metric: tone_amplitude,     family: gain, title: Response amplitude}
+  - {id: 6050, name: T10_FREQUENCY,    capture: T10, metric: dominant_frequency, family: frequency, title: Response frequency}
+  - {id: 4040, name: T15_AMPLITUDE,    capture: T15, metric: tone_amplitude,     family: gain, title: Response amplitude}
+  - {id: 4050, name: T15_FREQUENCY,    capture: T15, metric: dominant_frequency, family: frequency, title: Response frequency}
+  - {id: 5050, name: REC_TONE_ABSENT,  capture: REC, metric: tone_absent,        family: recovery, title: Tone gone after stop}
+  - {id: 5060, name: REC_OFFSET_SHIFT, capture: REC, metric: recovery_shift,     family: recovery, title: Offset after the tone}
+  - {id: 5080, name: REC_STUCK_RUN,    capture: REC, metric: stuck_run,          family: stuck, title: Recovery stuck run}
+  - {id: 5090, name: REC_OUTLIERS,     capture: REC, metric: outliers,           family: glitch, title: Recovery outliers}
+
+# Never judged; computed whenever their capture runs (D-029). Keys = future step names.
+diagnostics:
+  - {key: BL_P2P,             capture: BL,  metric: p2p}
+  - {key: T5_RESIDUAL,        capture: T5,  metric: residual_std}
+  - {key: T5_SPUR,            capture: T5,  metric: spur}
+  - {key: T5_HALF_STABILITY,  capture: T5,  metric: half_stability}
+  - {key: T5_OFFSET_SHIFT,    capture: T5,  metric: offset_shift}
+  - {key: T5_SNR,             capture: T5,  metric: snr}
+  - {key: T10_RESIDUAL,       capture: T10, metric: residual_std}
+  - {key: T10_SPUR,           capture: T10, metric: spur}
+  - {key: T10_HALF_STABILITY, capture: T10, metric: half_stability}
+  - {key: T10_OFFSET_SHIFT,   capture: T10, metric: offset_shift}
+  - {key: T10_SNR,            capture: T10, metric: snr}
+  - {key: T15_RESIDUAL,       capture: T15, metric: residual_std}
+  - {key: T15_SPUR,           capture: T15, metric: spur}
+  - {key: T15_HALF_STABILITY, capture: T15, metric: half_stability}
+  - {key: T15_OFFSET_SHIFT,   capture: T15, metric: offset_shift}
+  - {key: T15_SNR,            capture: T15, metric: snr}
+  - {key: REC_NOISE_STD,      capture: REC, metric: noise_std}
+  - {key: REC_OFFSET,         capture: REC, metric: offset}
+  - {key: REC_P2P,            capture: REC, metric: p2p}

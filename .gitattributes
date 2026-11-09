@@ -1,0 +1,11 @@
+# Text files are stored and checked out with LF on every platform (Python, YAML, Markdown).
+* text=auto eol=lf
+
+# Windows scripts keep CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary data: never touch line endings.
+*.png binary
+*.bin binary
+*.pdf binary

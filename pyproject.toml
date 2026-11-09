@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sensortest"
+version = "0.1.0"
+description = "Line test software for the simulated sensor + actuator (Eight Sleep take-home)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "PyQt6>=6.7",
+    "pyqtgraph>=0.13",
+    "pyserial>=3.5",
+    "numpy>=1.26",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5", "pyinstaller>=6.10"]
+
+[project.scripts]
+sensortest = "sensortest.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+src = ["src", "tests", "tools"]
+# Bench scripts are kept exactly as they were run (evidence), and the archive isn't maintained.
+extend-exclude = ["benchtop_testing", "docs/archive"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+# Docs use typographic dashes and section signs on purpose (M1–M9, §6).
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = ["hardware: needs the Teensy on USB; skipped unless pytest --hardware (D-049)"]
